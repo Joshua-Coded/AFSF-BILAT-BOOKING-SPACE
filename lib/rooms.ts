@@ -49,3 +49,15 @@ export function slotEndTime(start: string): string {
 export function slotLabel(start: string): string {
   return `${start}–${slotEndTime(start)}`;
 }
+
+// Africa Food Systems Forum 2026 runs 31 August - 4 September 2026.
+export const FORUM_DATES = [
+  "2026-08-31",
+  "2026-09-01",
+  "2026-09-02",
+  "2026-09-03",
+  "2026-09-04",
+];
+
+export const FORUM_START = FORUM_DATES[0];
+export const FORUM_END = FORUM_DATES[FORUM_DATES.length - 1];

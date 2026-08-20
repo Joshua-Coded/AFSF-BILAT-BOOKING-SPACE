@@ -2,42 +2,50 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { slotLabel, type Room } from "@/lib/rooms";
+import { FORUM_DATES, SLOT_TIMES, slotLabel, type Room } from "@/lib/rooms";
 
 const POLL_INTERVAL_MS = 15000;
 
-interface Slot {
-  time: string;
-  free: boolean;
+interface DaySlots {
+  date: string;
+  slots: { time: string; free: boolean }[];
+  freeSlots: number;
+  totalSlots: number;
 }
 
-interface AvailabilityResponse {
-  totalSlots: number;
-  freeSlots: number;
-  bookedSlots: number;
-  slots: Slot[];
+interface ForumAvailabilityResponse {
+  room: string;
+  days: DaySlots[];
 }
 
 interface RoomCardProps {
   room: Room;
-  date: string;
   refreshKey: number;
+  selectedDate: string | null;
   selectedTime: string | null;
   isSelectedRoom: boolean;
-  onSelectSlot: (roomCode: string, time: string) => void;
+  onSelectSlot: (roomCode: string, date: string, time: string) => void;
   onBookRoom: () => void;
+}
+
+function formatDayHeader(dateStr: string) {
+  const d = new Date(`${dateStr}T00:00:00`);
+  return {
+    day: d.getDate(),
+    month: d.toLocaleDateString(undefined, { month: "short" }),
+  };
 }
 
 export default function RoomCard({
   room,
-  date,
   refreshKey,
+  selectedDate,
   selectedTime,
   isSelectedRoom,
   onSelectSlot,
   onBookRoom,
 }: RoomCardProps) {
-  const [data, setData] = useState<AvailabilityResponse | null>(null);
+  const [data, setData] = useState<ForumAvailabilityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +54,7 @@ export default function RoomCard({
       if (showSpinner) setLoading(true);
       setError(null);
 
-      return fetch(`/api/availability?room=${room.code}&date=${date}`, { signal })
+      return fetch(`/api/availability/forum?room=${room.code}`, { signal })
         .then((res) => {
           if (!res.ok) throw new Error("Could not load availability");
           return res.json();
@@ -59,7 +67,7 @@ export default function RoomCard({
           if (showSpinner) setLoading(false);
         });
     },
-    [room.code, date]
+    [room.code]
   );
 
   useEffect(() => {
@@ -76,10 +84,10 @@ export default function RoomCard({
     };
   }, [fetchAvailability, refreshKey]);
 
-  const freeSlots = data?.freeSlots ?? 0;
-  const totalSlots = data?.totalSlots ?? 0;
-  const pct = totalSlots > 0 ? Math.round((freeSlots / totalSlots) * 100) : 0;
-  const isFull = !loading && !error && freeSlots === 0;
+  const totalFree = data?.days.reduce((sum, d) => sum + d.freeSlots, 0) ?? 0;
+  const totalSlots = data?.days.reduce((sum, d) => sum + d.totalSlots, 0) ?? 0;
+  const pct = totalSlots > 0 ? Math.round((totalFree / totalSlots) * 100) : 0;
+  const isFull = !loading && !error && totalFree === 0;
 
   return (
     <div className="group rounded-2xl border border-stone-200 bg-white shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 overflow-hidden flex flex-col">
@@ -101,7 +109,7 @@ export default function RoomCard({
               isFull ? "bg-ember text-white" : "bg-harvest text-white",
             ].join(" ")}
           >
-            {isFull ? "Fully booked" : `${freeSlots}/${totalSlots} free`}
+            {isFull ? "Fully booked" : `${totalFree}/${totalSlots} free`}
           </div>
         )}
         <div className="absolute bottom-3 left-3 right-3 text-white text-sm font-medium drop-shadow">
@@ -114,10 +122,10 @@ export default function RoomCard({
 
         <div>
           <div className="flex items-center justify-between text-sm mb-1">
-            <span className="text-stone-600">Availability on {date}</span>
+            <span className="text-stone-600">Availability, 31 Aug &ndash; 4 Sep</span>
             {!loading && !error && (
               <span className="font-semibold text-forest">
-                {freeSlots}/{totalSlots} slots free
+                {totalFree}/{totalSlots} slots free
               </span>
             )}
           </div>
@@ -130,28 +138,70 @@ export default function RoomCard({
         {error && <div className="text-sm text-ember">{error}</div>}
 
         {data && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {data.slots.map((slot) => {
-              const isChosen = isSelectedRoom && selectedTime === slot.time;
-              return (
-                <button
-                  key={slot.time}
-                  type="button"
-                  disabled={!slot.free}
-                  onClick={() => onSelectSlot(room.code, slot.time)}
-                  className={[
-                    "rounded-lg border px-2 py-2 text-xs font-medium transition-colors",
-                    !slot.free
-                      ? "cursor-not-allowed border-stone-100 bg-stone-50 text-stone-300 line-through"
-                      : isChosen
-                        ? "border-forest bg-forest text-white"
-                        : "border-stone-200 text-stone-700 hover:border-forest hover:text-forest",
-                  ].join(" ")}
-                >
-                  {slotLabel(slot.time)}
-                </button>
-              );
-            })}
+          <div className="overflow-x-auto -mx-1 px-1">
+            <table className="w-full text-xs border-separate border-spacing-1">
+              <thead>
+                <tr>
+                  <th className="text-left text-stone-400 font-medium pr-1 w-16">Time</th>
+                  {data.days.map((d) => {
+                    const { day, month } = formatDayHeader(d.date);
+                    return (
+                      <th key={d.date} className="text-stone-500 font-medium">
+                        <div className="leading-none">{day}</div>
+                        <div className="text-[10px] text-stone-400 font-normal">{month}</div>
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {SLOT_TIMES.map((time) => (
+                  <tr key={time}>
+                    <td className="text-stone-500 whitespace-nowrap pr-1">{slotLabel(time)}</td>
+                    {FORUM_DATES.map((date) => {
+                      const day = data.days.find((d) => d.date === date);
+                      const slot = day?.slots.find((s) => s.time === time);
+                      const free = slot?.free ?? false;
+                      const isChosen =
+                        isSelectedRoom && selectedDate === date && selectedTime === time;
+                      return (
+                        <td key={date}>
+                          <button
+                            type="button"
+                            disabled={!free}
+                            onClick={() => onSelectSlot(room.code, date, time)}
+                            className={[
+                              "w-full h-7 rounded-md border flex items-center justify-center transition-colors",
+                              !free
+                                ? "cursor-not-allowed border-ember/20 bg-ember/10"
+                                : isChosen
+                                  ? "border-forest bg-forest"
+                                  : "border-forest/25 bg-forest/5 hover:border-forest hover:bg-forest/10",
+                            ].join(" ")}
+                            aria-label={`${date} ${slotLabel(time)} ${free ? "available" : "booked"}`}
+                            title={`${date} ${slotLabel(time)} ${free ? "available" : "booked"}`}
+                          >
+                            {!free && <span className="text-ember text-xs leading-none">&times;</span>}
+                            {free && isChosen && <span className="text-white text-xs leading-none">&#10003;</span>}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="flex items-center gap-4 mt-2 text-[11px] text-stone-500">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm border border-forest/25 bg-forest/5" /> Free
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm bg-forest" /> Selected
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-sm border border-ember/20 bg-ember/10 text-ember text-[8px] flex items-center justify-center leading-none">&times;</span> Booked
+              </span>
+            </div>
           </div>
         )}
 

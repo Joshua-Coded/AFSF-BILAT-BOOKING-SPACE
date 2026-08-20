@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
-import { getRoom, SLOT_TIMES, MAX_SLOTS_PER_PARTNER_PER_DAY, MAX_HOURS_PER_PARTNER_PER_DAY } from "@/lib/rooms";
+import {
+  getRoom,
+  SLOT_TIMES,
+  MAX_SLOTS_PER_PARTNER_PER_DAY,
+  MAX_HOURS_PER_PARTNER_PER_DAY,
+  FORUM_DATES,
+} from "@/lib/rooms";
 
 interface BookingPayload {
   roomCode: string;
@@ -32,25 +38,6 @@ const REQUIRED_FIELDS: (keyof BookingPayload)[] = [
 ];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const date = searchParams.get("date");
-
-  if (!date) {
-    return NextResponse.json({ error: "date is required" }, { status: 400 });
-  }
-
-  const rows = await sql(
-    `SELECT room_code, booking_time
-     FROM bookings
-     WHERE booking_date = $1
-     ORDER BY booking_time ASC, room_code ASC`,
-    [date]
-  );
-
-  return NextResponse.json({ date, bookings: rows });
-}
 
 export async function POST(req: NextRequest) {
   let body: BookingPayload;
@@ -91,9 +78,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid email address" }, { status: 400 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  if (body.date < today) {
-    return NextResponse.json({ error: "date cannot be in the past" }, { status: 400 });
+  if (!FORUM_DATES.includes(body.date)) {
+    return NextResponse.json(
+      { error: "Bookings are only open for the forum dates: 31 Aug - 4 Sep 2026" },
+      { status: 400 }
+    );
   }
 
   const normalizedEmail = body.email.trim().toLowerCase();

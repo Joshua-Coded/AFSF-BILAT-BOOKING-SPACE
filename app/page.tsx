@@ -5,27 +5,25 @@ import { useState } from "react";
 import RoomCard from "@/components/RoomCard";
 import BookingForm from "@/components/BookingForm";
 import BookingModal from "@/components/BookingModal";
-import BookingsList from "@/components/BookingsList";
 import Splash from "@/components/Splash";
-import { ROOMS } from "@/lib/rooms";
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
+import { ROOMS, FORUM_START, FORUM_END } from "@/lib/rooms";
 
 export default function Home() {
-  const [date, setDate] = useState(todayISO());
+  const [date, setDate] = useState(FORUM_START);
   const [roomCode, setRoomCode] = useState<string>(ROOMS[0].code);
   const [time, setTime] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
 
-  function openBookingModal(selectedRoomCode: string, selectedTime: string | null) {
+  function openBookingModal(selectedRoomCode: string, selectedDate: string, selectedTime: string | null) {
     setRoomCode(selectedRoomCode);
+    setDate(selectedDate);
     setTime(selectedTime);
     setModalOpen(true);
   }
 
-  function handleSelectSlot(selectedRoomCode: string, selectedTime: string) {
-    openBookingModal(selectedRoomCode, selectedTime);
+  function handleSelectSlot(selectedRoomCode: string, selectedDate: string, selectedTime: string) {
+    openBookingModal(selectedRoomCode, selectedDate, selectedTime);
   }
 
   function handleRoomChange(newRoom: string) {
@@ -65,8 +63,8 @@ export default function Home() {
                 Bilateral Meeting Room Booking
               </h1>
               <p className="text-white/80 mt-2 max-w-xl mx-auto">
-                Reserve room AD7 or AD9 for your bilateral meetings. Availability updates live,
-                every day from 08:00 to 21:00.
+                Reserve room AD7 or AD9 for your bilateral meetings during the forum,
+                31 August &ndash; 4 September 2026, from 08:00 to 21:00 daily.
               </p>
             </div>
           </div>
@@ -74,14 +72,15 @@ export default function Home() {
 
         <div className="flex-1 bg-[#f7f5f0]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 flex flex-col gap-10">
-            <section>
-              <div className="flex items-end justify-between gap-4 mb-5 flex-wrap">
+            <section className="flex flex-col gap-5">
+              <div className="flex items-end justify-between gap-4 flex-wrap">
                 <h2 className="text-xl font-semibold text-stone-800">Rooms</h2>
                 <label className="flex items-center gap-2 text-sm">
-                  <span className="text-stone-600">Checking availability for</span>
+                  <span className="text-stone-600">Default date for booking</span>
                   <input
                     type="date"
-                    min={todayISO()}
+                    min={FORUM_START}
+                    max={FORUM_END}
                     value={date}
                     onChange={(e) => handleDateChange(e.target.value)}
                     className="input"
@@ -89,23 +88,21 @@ export default function Home() {
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {ROOMS.map((room) => (
                   <RoomCard
                     key={room.code}
                     room={room}
-                    date={date}
                     refreshKey={refreshKey}
+                    selectedDate={roomCode === room.code ? date : null}
                     selectedTime={roomCode === room.code ? time : null}
                     isSelectedRoom={roomCode === room.code}
                     onSelectSlot={handleSelectSlot}
-                    onBookRoom={() => openBookingModal(room.code, null)}
+                    onBookRoom={() => openBookingModal(room.code, date, null)}
                   />
                 ))}
               </div>
             </section>
-
-            <BookingsList date={date} refreshKey={refreshKey} />
           </div>
         </div>
       </main>

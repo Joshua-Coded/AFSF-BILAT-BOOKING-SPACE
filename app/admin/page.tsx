@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
+import { slotLabel } from "@/lib/rooms";
 
 interface BookingRow {
   id: number;
@@ -123,6 +125,35 @@ export default function AdminPage() {
     }
   }
 
+  function handleExport() {
+    const rows = bookings.map((b) => ({
+      Date: formatDate(b.booking_date),
+      Time: slotLabel(b.booking_time.slice(0, 5)),
+      Room: b.room_code,
+      "Event / Meeting title": b.event_title,
+      Pax: b.pax,
+      "First name": b.first_name,
+      "Last name": b.last_name,
+      Email: b.email,
+      Telephone: b.telephone,
+      Organisation: b.organisation,
+      Country: b.country,
+      Comment: b.comment ?? "",
+    }));
+
+    const sheet = XLSX.utils.json_to_sheet(rows);
+    sheet["!cols"] = [
+      { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 24 }, { wch: 6 },
+      { wch: 14 }, { wch: 14 }, { wch: 24 }, { wch: 16 }, { wch: 22 }, { wch: 16 }, { wch: 28 },
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, "Bookings");
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `afsf-bilat-bookings-${stamp}.xlsx`);
+  }
+
   const stats = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     return {
@@ -195,6 +226,14 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={bookings.length === 0}
+              className="rounded-lg bg-harvest hover:bg-harvest/90 px-4 py-2 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+            >
+              Export to Excel
+            </button>
             <button
               type="button"
               onClick={loadBookings}

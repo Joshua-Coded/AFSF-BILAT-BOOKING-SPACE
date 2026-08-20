@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { ROOMS, SLOT_TIMES, slotLabel, getRoom } from "@/lib/rooms";
+import { ROOMS, SLOT_TIMES, slotLabel, getRoom, FORUM_START, FORUM_END } from "@/lib/rooms";
 import { COUNTRIES } from "@/lib/countries";
 
 interface BookingFormProps {
@@ -13,8 +13,6 @@ interface BookingFormProps {
   onTimeChange: (time: string) => void;
   onBooked: () => void;
 }
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export default function BookingForm({
   roomCode,
@@ -143,7 +141,8 @@ export default function BookingForm({
           <input
             required
             type="date"
-            min={todayISO()}
+            min={FORUM_START}
+            max={FORUM_END}
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
             className="input"
