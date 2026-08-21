@@ -33,16 +33,18 @@ export function getRoom(code: string): Room | undefined {
 }
 
 // Bilateral meeting slot grid: 2-hour blocks, 08:00 - 20:00 start times (venue open 8am-9pm).
-export const SLOT_TIMES = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"];
+// The last slot (20:00) is capped at closing time, 21:00, so the full 8am-9pm window is bookable.
+export const SLOT_TIMES = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
 
 export const SLOT_DURATION_HOURS = 2;
+export const VENUE_CLOSE_HOUR = 21;
 export const MAX_HOURS_PER_PARTNER_PER_DAY = 2;
 export const MAX_SLOTS_PER_PARTNER_PER_DAY =
   MAX_HOURS_PER_PARTNER_PER_DAY / SLOT_DURATION_HOURS;
 
 export function slotEndTime(start: string): string {
   const [h] = start.split(":").map(Number);
-  const endHour = h + SLOT_DURATION_HOURS;
+  const endHour = Math.min(h + SLOT_DURATION_HOURS, VENUE_CLOSE_HOUR);
   return `${String(endHour).padStart(2, "0")}:00`;
 }
 
